@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TriDoc Enterprise – Document Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#1e1e1e',
+                            800: '#2a2a2a',
+                            700: '#333333',
+                            600: '#444444',
+                        },
+                        light: {
+                            100: '#f8f9fa',
+                            200: '#f1f3f5',
+                            300: '#e9ecef',
+                            400: '#dee2e6',
+                            500: '#ced4da',
+                        },
+                        brand: {
+                            DEFAULT: '#9eff2f',
+                            hover: '#8be525',
+                            light: '#d4ed8a',
+                        },
+                        text: {
+                            muted: '#9ca3af',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 15px rgba(158, 255, 47, 0.5)',
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)',
+                        'light-card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* Reset and base */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e1e1e;
+            color: #f8f9fa;
+            height: 100vh;
+            overflow: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #2a2a2a; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+
+        /* Light mode overrides */
+        html:not(.dark) body {
+            background-color: #f1f3f5;
+            color: #212529;
+        }
+        html:not(.dark) .bg-dark-900 { background-color: #f8f9fa; }
+        html:not(.dark) .bg-dark-800 { background-color: #ffffff; border-color: #dee2e6; }
+        html:not(.dark) .bg-dark-700 { background-color: #f1f3f5; border-color: #dee2e6; }
+        html:not(.dark) .bg-dark-700\/50 { background-color: rgba(241, 243, 245, 0.5); }
+        html:not(.dark) .bg-dark-700\/30 { background-color: rgba(241, 243, 245, 0.3); }
+        html:not(.dark) .bg-dark-900\/50 { background-color: rgba(248, 249, 250, 0.5); }
+        html:not(.dark) .border-dark-700 { border-color: #dee2e6; }
+        html:not(.dark) .border-dark-700\/50 { border-color: rgba(222, 226, 230, 0.5); }
+        html:not(.dark) .text-white { color: #212529; }
+        html:not(.dark) .text-gray-400 { color: #6c757d; }
+        html:not(.dark) .text-gray-300 { color: #495057; }
+        html:not(.dark) .text-gray-500 { color: #6c757d; }
+        html:not(.dark) .text-gray-600 { color: #6c757d; }
+        html:not(.dark) .hover\:bg-dark-700:hover { background-color: #e9ecef; }
+        html:not(.dark) .hover\:text-white:hover { color: #212529; }
+        html:not(.dark) .shadow-card { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
+        html:not(.dark) .shadow-glow { box-shadow: 0 0 15px rgba(158, 255, 47, 0.3); }
+        html:not(.dark) .hover\:shadow-glow:hover { box-shadow: 0 0 20px rgba(158, 255, 47, 0.4); }
+        html:not(.dark) .border-brand\/30 { border-color: rgba(158, 255, 47, 0.3); }
+        html:not(.dark) .bg-brand\/20 { background-color: rgba(158, 255, 47, 0.15); }
+        html:not(.dark) .bg-brand\/10 { background-color: rgba(158, 255, 47, 0.08); }
+        html:not(.dark) .bg-dark-800 { background-color: #ffffff; }
+        html:not(.dark) .bg-dark-900 { background-color: #f8f9fa; }
+        html:not(.dark) .hover\:bg-dark-600:hover { background-color: #e9ecef; }
+        html:not(.dark) .hover\:bg-dark-700\/30:hover { background-color: rgba(241, 243, 245, 0.5); }
+        html:not(.dark) .hover\:bg-dark-700\/50:hover { background-color: rgba(241, 243, 245, 0.5); }
+        html:not(.dark) .divide-dark-700\/50 { border-color: rgba(222, 226, 230, 0.5); }
+        html:not(.dark) .border-dark-700 { border-color: #dee2e6; }
+        html:not(.dark) .bg-dark-700 { background-color: #f1f3f5; }
+        html:not(.dark) .text-brand { color: #2b7a0e; }
+        html:not(.dark) .bg-brand { background-color: #9eff2f; color: #1e1e1e; }
+        html:not(.dark) .bg-brand:hover { background-color: #8be525; }
+        html:not(.dark) .bg-brand\/20 { background-color: rgba(158, 255, 47, 0.15); }
+        html:not(.dark) .bg-brand\/10 { background-color: rgba(158, 255, 47, 0.08); }
+        html:not(.dark) .border-gray-600 { border-color: #ced4da; }
+        html:not(.dark) .btn-brand { background-color: #9eff2f; color: #1e1e1e; }
+        html:not(.dark) .btn-brand:hover { background-color: #8be525; }
+
+        /* Ensure shadows are not clipped */
+        .sidebar-shadow {
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+        .nav-item-glow {
+            box-shadow: 0 0 15px rgba(158, 255, 47, 0.5);
+        }
+        /* Responsive tweaks */
+        @media (max-width: 768px) {
+            .sidebar-hidden { display: none; }
+            .main-full { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main App Container -->
+    <div class="flex h-screen w-full bg-dark-900 overflow-hidden">
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-dark-800 flex flex-col py-6 border-r border-dark-700/50 sidebar-shadow z-20 shrink-0 overflow-y-auto">
+            <!-- Logo -->
+            <div class="flex items-center px-6 mb-8">
+                <div class="w-8 h-8 mr-3 text-brand">
+                    <i class="fa-solid fa-cubes text-2xl"></i>
+                </div>
+                <span class="text-xl font-bold tracking-wide text-white">TriDoc</span>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-4 space-y-1.5">
+                <a href="#" onclick="UI.navigate('dashboard')" id="nav-dashboard" class="nav-item flex items-center px-4 py-3 bg-brand/20 text-brand font-semibold rounded-lg transition-all duration-200 nav-item-glow">
+                    <i class="fa-solid fa-chart-pie w-5 mr-3 text-lg"></i> <span data-i18n="dashboard">Dashboard</span>
+                </a>
+                <a href="#" onclick="UI.navigate('documents')" id="nav-documents" class="nav-item flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-all duration-200">
+                    <i class="fa-solid fa-folder-open w-5 mr-3 text-lg"></i> <span data-i18n="documents">Documents</span>
+                </a>
+                <a href="#" onclick="UI.navigate('search')" id="nav-search" class="nav-item flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-all duration-200">
+                    <i class="fa-solid fa-magnifying-glass w-5 mr-3 text-lg"></i> <span data-i18n="search">Full-Text Search</span>
+                </a>
+                <a href="#" onclick="UI.navigate('users')" id="nav-users" class="nav-item flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-all duration-200">
+                    <i class="fa-solid fa-users w-5 mr-3 text-lg"></i> <span data-i18n="users">User Access</span>
+                </a>
+                <a href="#" onclick="UI.navigate('security')" id="nav-security" class="nav-item flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-all duration-200">
+                    <i class="fa-solid fa-shield-halved w-5 mr-3 text-lg"></i> <span data-i18n="security">Security Logs</span>
+                </a>
+                <a href="#" onclick="UI.navigate('settings')" id="nav-settings" class="nav-item flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-all duration-200">
+                    <i class="fa-solid fa-gear w-5 mr-3 text-lg"></i> <span data-i18n="settings">Settings</span>
+                </a>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="px-4 pt-4 border-t border-dark-700/50 bg-dark-900/50 mt-4">
+                <div class="p-3 bg-dark-800 rounded-xl border border-dark-700 mb-3">
+                    <div class="flex justify-between text-xs mb-1 font-medium">
+                        <span class="text-gray-400" data-i18n="storageUsed">Storage Used</span>
+                        <span id="storage-used-label" class="text-brand">0 MB</span>
+                    </div>
+                    <div class="w-full bg-dark-900 rounded-full h-2 overflow-hidden">
+                        <div id="storage-progress-bar" class="bg-brand h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <img id="sidebar-user-avatar" src="https://ui-avatars.com/api/?name=Zack+Foster&background=9eff2f&color=1e1e1e" class="w-10 h-10 rounded-xl border border-dark-700">
+                    <div class="min-w-0 flex-1">
+                        <div id="sidebar-user-name" class="font-semibold text-sm text-white truncate">Zack Foster</div>
+                        <div id="sidebar-user-role" class="text-xs text-gray-400 truncate">System Admin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col min-w-0 bg-dark-900">
+
+            <!-- Header -->
+            <header class="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-dark-700/50 bg-dark-900/80 backdrop-blur-sm sticky top-0 z-10">
+                <h1 class="text-xl md:text-2xl font-bold text-white" data-i18n="appName">TriDoc Enterprise</h1>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <button onclick="UI.openUploadModal()" class="btn-brand px-4 py-2 rounded-lg font-semibold flex items-center shadow-glow transition text-sm md:text-base">
+                        <i class="fa-solid fa-cloud-arrow-up mr-2"></i> <span data-i18n="upload">Upload Files</span>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <!-- Theme Toggle with icons (no inline onchange) -->
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="theme-toggle-checkbox" class="sr-only peer">
+                            <div class="w-10 h-5 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 peer-checked:after:bg-brand after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand/30 border border-dark-600"></div>
+                            <span class="ml-2 text-gray-400 text-sm">
+                                <i id="theme-icon" class="fa-solid fa-moon"></i>
+                            </span>
+                        </label>
+                        <!-- Language Selector -->
+                        <select id="lang-select" class="bg-dark-800 border border-dark-700 rounded-xl px-2 py-1.5 text-sm text-white focus:outline-none focus:border-brand">
+                            <option value="en">🇬🇧 English</option>
+                            <option value="am">🇪🇹 Amharic</option>
+                            <option value="om">🇪🇹 Afan Oromo</option>
+                        </select>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Scrollable Content Area -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+
+                <!-- Dashboard -->
+                <div id="view-dashboard" class="view-section space-y-6">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-dark-800 p-4 rounded-xl border border-dark-700 shadow-card hover:shadow-glow transition-shadow duration-300">
+                            <p class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider" data-i18n="totalDocs">Total Documents</p>
+                            <p class="text-2xl font-bold text-white" id="kpi-total-docs">0</p>
+                        </div>
+                        <div class="bg-dark-800 p-4 rounded-xl border border-dark-700 shadow-card hover:shadow-glow transition-shadow duration-300">
+                            <p class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider" data-i18n="totalStorage">Total Storage</p>
+                            <p class="text-2xl font-bold text-white" id="kpi-total-storage">0 MB</p>
+                        </div>
+                        <div class="bg-dark-800 p-4 rounded-xl border border-dark-700 shadow-card hover:shadow-glow transition-shadow duration-300">
+                            <p class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider" data-i18n="processedPages">Processed Pages</p>
+                            <p class="text-2xl font-bold text-white" id="kpi-processed-pages">0</p>
+                        </div>
+                        <div class="bg-dark-800 p-4 rounded-xl border border-dark-700 shadow-card hover:shadow-glow transition-shadow duration-300">
+                            <p class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider" data-i18n="avgLatency">Avg Query Latency</p>
+                            <p class="text-2xl font-bold text-white">&lt; 10ms</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-dark-800 p-6 rounded-2xl border border-dark-700 shadow-card">
+                            <h3 class="text-lg font-semibold text-white mb-4">Ingestion Activity</h3>
+                            <div class="h-64"><canvas id="activityChart"></canvas></div>
+                        </div>
+                        <div class="bg-dark-800 p-6 rounded-2xl border border-dark-700 shadow-card">
+                            <h3 class="text-lg font-semibold text-white mb-4">Format Distribution</h3>
+                            <div class="h-64 flex items-center justify-center"><canvas id="formatChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents -->
+                <div id="view-documents" class="view-section hidden space-y-6">
+                    <div class="flex flex-wrap justify-between items-center gap-4">
+                        <h2 class="text-xl font-bold text-white" data-i18n="documents">Documents</h2>
+                        <span id="doc-count-badge" class="text-sm text-gray-400">0 files</span>
+                    </div>
+                    <div class="bg-dark-800 border border-dark-700 rounded-2xl shadow-card overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-dark-900/50 border-b border-dark-700">
+                                    <tr class="text-gray-400 text-xs uppercase tracking-wider">
+                                        <th class="px-4 py-3 font-semibold">Name</th>
+                                        <th class="px-4 py-3 font-semibold">Category</th>
+                                        <th class="px-4 py-3 font-semibold">Size</th>
+                                        <th class="px-4 py-3 font-semibold">Uploaded</th>
+                                        <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-dark-700/50" id="documents-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div id="view-search" class="view-section hidden space-y-6">
+                    <h2 class="text-xl font-bold text-white" data-i18n="search">Full-Text Search</h2>
+                    <div class="bg-dark-800 border border-dark-700 p-6 rounded-2xl shadow-card">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="deep-search-input" oninput="App.search(this.value)" placeholder="Search any content..." class="w-full bg-dark-900 border border-dark-700 rounded-xl pl-12 pr-4 py-4 text-base text-white placeholder-gray-400 focus:border-brand focus:outline-none transition">
+                        </div>
+                    </div>
+                    <div class="space-y-4" id="search-results-container"></div>
+                </div>
+
+                <!-- Users -->
+                <div id="view-users" class="view-section hidden space-y-6">
+                    <div class="flex flex-wrap justify-between items-center gap-4">
+                        <h2 class="text-xl font-bold text-white" data-i18n="users">User Access</h2>
+                        <button onclick="UI.openUserModal()" class="btn-brand px-4 py-2 rounded-lg font-semibold flex items-center shadow-glow transition">
+                            <i class="fa-solid fa-user-plus mr-2"></i> <span data-i18n="addUser">Add New User</span>
+                        </button>
+                    </div>
+                    <div class="bg-dark-800 border border-dark-700 rounded-2xl shadow-card overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-dark-900/50 border-b border-dark-700">
+                                    <tr class="text-gray-400 text-xs uppercase tracking-wider">
+                                        <th class="px-4 py-3 font-semibold" data-i18n="fullName">User</th>
+                                        <th class="px-4 py-3 font-semibold" data-i18n="role">Role</th>
+                                        <th class="px-4 py-3 font-semibold">Last Login</th>
+                                        <th class="px-4 py-3 font-semibold text-center" data-i18n="status">Status</th>
+                                        <th class="px-4 py-3 font-semibold text-right" data-i18n="actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-dark-700/50" id="users-list-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Logs -->
+                <div id="view-security" class="view-section hidden space-y-6">
+                    <div class="flex flex-wrap justify-between items-center gap-4">
+                        <h2 class="text-xl font-bold text-white" data-i18n="security">Security Logs</h2>
+                        <span id="audit-count-label" class="text-sm text-gray-400">0 events</span>
+                    </div>
+                    <div class="bg-dark-800 border border-dark-700 rounded-2xl shadow-card h-[70vh] overflow-y-auto p-4 space-y-3" id="security-logs-container"></div>
+                </div>
+
+                <!-- Settings -->
+                <div id="view-settings" class="view-section hidden space-y-6 max-w-4xl">
+                    <h2 class="text-xl font-bold text-white" data-i18n="settings">Settings</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-dark-800 p-6 rounded-2xl border border-dark-700 shadow-card space-y-4">
+                            <h3 class="text-lg font-semibold text-white border-b border-dark-700 pb-3">Search Engine</h3>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Fuzzy Matching</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="setting-fuzzy" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 peer-checked:after:bg-brand after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand/30 border border-dark-600"></div>
+                                </label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Auto-Indexing</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="setting-autocommit" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 peer-checked:after:bg-brand after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand/30 border border-dark-600"></div>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-300 block mb-1">Max Snippet Length</label>
+                                <input type="number" id="setting-snippet-len" value="250" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2 text-sm text-white focus:border-brand focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="bg-dark-800 p-6 rounded-2xl border border-dark-700 shadow-card space-y-4">
+                            <h3 class="text-lg font-semibold text-white border-b border-dark-700 pb-3">Performance</h3>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">OCR Enabled</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="setting-ocr" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 peer-checked:after:bg-brand after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand/30 border border-dark-600"></div>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-300 block mb-1">Storage Directory (fixed)</label>
+                                <input type="text" id="setting-storage-limit" readonly class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2 text-sm text-gray-400 cursor-not-allowed opacity-70">
+                            </div>
+                            <button onclick="App.clearCache()" class="w-full py-2.5 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-xl text-sm font-medium transition">Purge Database</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- end scrollable content -->
+        </main>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b border-dark-700 pb-4">
+                <h3 class="text-xl font-bold text-white" data-i18n="uploadModalTitle">Upload Documents</h3>
+                <button onclick="UI.closeUploadModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="dropzone" class="border-2 border-dashed border-dark-700 hover:border-brand rounded-2xl p-8 text-center cursor-pointer transition-all bg-dark-900/50">
+                <input type="file" id="file-input" multiple class="hidden" onchange="App.handleFiles(Array.from(this.files).map(f => f.path))">
+                <div class="w-16 h-16 rounded-2xl bg-brand/10 text-brand border border-brand/20 flex items-center justify-center text-2xl mx-auto mb-4">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <h4 class="font-bold text-white text-base mb-1" data-i18n="dropzoneText">Drag and drop any files here</h4>
+                <p class="text-xs text-gray-400 mb-4">Supports PDF, DOCX, TXT, Images, and more</p>
+                <button onclick="document.getElementById('file-input').click()" class="bg-dark-700 hover:bg-dark-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition">Browse Files</button>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="UI.closeUploadModal()" class="px-5 py-2.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-xl text-sm font-medium transition" data-i18n="close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="user-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b border-dark-700 pb-4">
+                <h3 id="user-modal-title" class="text-xl font-bold text-white" data-i18n="addUser">Add New User</h3>
+                <button onclick="UI.closeUserModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="hidden" id="user-edit-id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1" data-i18n="fullName">Full Name</label>
+                    <input type="text" id="user-form-name" placeholder="John Doe" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-brand focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1" data-i18n="email">Email</label>
+                    <input type="email" id="user-form-email" placeholder="j.doe@example.com" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-brand focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1" data-i18n="role">Role</label>
+                    <select id="user-form-role" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-brand focus:outline-none">
+                        <option>System Admin</option>
+                        <option>Manager</option>
+                        <option>Staff User</option>
+                        <option>Viewer Only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="UI.closeUserModal()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-xl text-sm" data-i18n="cancel">Cancel</button>
+                <button onclick="App.saveUser()" class="px-5 py-2 btn-brand rounded-xl text-sm font-semibold shadow-glow transition" data-i18n="save">Save User</button>
+            </div>
+        </div>
+    </div>
+
+    <script defer src="renderer.js"></script>
+</body>
+</html>
