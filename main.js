@@ -6,6 +6,42 @@ const { Worker } = require('worker_threads');
 const Database = require('./database');
 const { autoUpdater } = require('electron-updater');
 
+// ─────────────────────────────────────────────
+// SINGLE INSTANCE + OS-LEVEL COMPATIBILITY
+// ─────────────────────────────────────────────
+// Only one TriDoc window at a time (two instances would fight over the DB).
+if (!app.requestSingleInstanceLock()) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+}
+
+// Windows taskbar grouping / notification identity
+app.setAppUserModelId('com.triverse.tridoc');
+
+// Old GPUs / drivers / VMs can render blank or frozen windows.
+// --disable-gpu forces software rendering for stability on those machines.
+if (process.argv.includes('--disable-gpu')) {
+    app.disableHardwareAcceleration();
+    app.commandLine.appendSwitch('disable-gpu');
+}
+
+// If the GPU process crashes at runtime, restart with software rendering
+// instead of showing a frozen window.
+app.on('child-process-gone', (event, details) => {
+    const reason = String((details && details.reason) || '');
+    if (details && (details.type === 'GPU' || /gpu/i.test(reason))) {
+        log('GPU process crashed — relaunching with software rendering.');
+        app.relaunch({ args: process.argv.slice(1).concat(['--disable-gpu']) });
+        app.exit(0);
+    }
+});
+
 function generateId(prefix = '') {
     return prefix + crypto.randomUUID();
 }
@@ -43,6 +79,18 @@ let userSettings = {
 };
 
 const ROOT_STORAGE = path.join(app.getPath('documents'), 'TriDoc_Storage');
+
+// Every file type the app can ingest and index. Adding a format here makes it
+// uploadable, auto-indexable and searchable (content extraction lives in
+// search-worker.js).
+const SUPPORTED_EXTS = [
+    // Documents
+    'pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'odt', 'epub', 'rtf',
+    // Plain text / markup / data
+    'txt', 'csv', 'log', 'md', 'html', 'htm', 'xml', 'json', 'yml', 'yaml', 'ini', 'svg',
+    // Images (OCR)
+    'jpg', 'jpeg', 'png', 'webp', 'tiff', 'bmp', 'gif'
+];
 
 // ─────────────────────────────────────────────
 // SETTINGS
@@ -139,7 +187,6 @@ function startAutoIndexing() {
 
 async function indexNewFilesFromStorage() {
     if (!fs.existsSync(ROOT_STORAGE)) return 0;
-    const supportedExts = ['pdf', 'docx', 'doc', 'txt', 'csv', 'log', 'md', 'jpg', 'jpeg', 'png', 'tiff', 'bmp', 'gif'];
     let count = 0;
     for (const f of fs.readdirSync(ROOT_STORAGE)) {
         const fullPath = path.join(ROOT_STORAGE, f);
@@ -147,7 +194,7 @@ async function indexNewFilesFromStorage() {
             const stat = fs.statSync(fullPath);
             if (!stat.isFile()) continue;
             const ext = path.extname(f).substring(1).toLowerCase();
-            if (!supportedExts.includes(ext)) continue;
+            if (!SUPPORTED_EXTS.includes(ext)) continue;
             if (db.getDocumentByNameAndSize(f, stat.size)) continue;
             if (db.getDocumentByPath(fullPath)) continue;
 
@@ -180,28 +227,36 @@ async function indexNewFilesFromStorage() {
 function createWindow() {
     try {
         log('Creating main window...');
-        const useSoftware = process.argv.includes('--disable-gpu');
         const webPreferences = {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false
         };
-        if (useSoftware) {
-            app.commandLine.appendSwitch('disable-gpu');
-            app.commandLine.appendSwitch('disable-software-rasterizer');
-        }
 
         mainWindow = new BrowserWindow({
             width: 1440,
             height: 900,
-            minWidth: 1024,
-            minHeight: 700,
+            minWidth: 960,
+            minHeight: 640,
             backgroundColor: '#1e1e1e',
             show: false,
+            autoHideMenuBar: true,
             webPreferences
         });
 
         mainWindow.loadFile('index.html');
+
+        // Never open new windows; open external http(s) links in the default browser
+        mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+            if (/^https?:/i.test(url)) shell.openExternal(url);
+            return { action: 'deny' };
+        });
+        mainWindow.webContents.on('will-navigate', (e, url) => {
+            if (/^https?:/i.test(url)) {
+                e.preventDefault();
+                shell.openExternal(url);
+            }
+        });
 
         mainWindow.once('ready-to-show', () => {
             mainWindow.show();
@@ -313,32 +368,35 @@ ipcMain.handle('get-translations', (event, lang) => {
 });
 
 // UPLOAD FILES
+// Files are processed with a small concurrency pool (3 at a time) so a batch of
+// many/large files gets through quickly without overwhelming the CPU with OCR.
 ipcMain.handle('upload-files', async (event, filePaths) => {
-    const results = [];
     const total = filePaths.length;
+    const results = new Array(total);
+    let completed = 0;
+    const CONCURRENCY = 3;
 
-    for (let i = 0; i < total; i++) {
-        const filePath = filePaths[i];
+    const processOne = async (index) => {
+        const filePath = filePaths[index];
+        const filename = path.basename(filePath);
         try {
             if (!fs.existsSync(filePath)) {
-                results.push({ filename: path.basename(filePath), status: 'error', message: 'File does not exist' });
-                continue;
+                results[index] = { filename, status: 'error', message: 'File does not exist' };
+                return;
             }
 
-            const filename = path.basename(filePath);
             const stats = fs.statSync(filePath);
             const ext = path.extname(filename).substring(1).toLowerCase();
 
-            const supportedExts = ['pdf', 'docx', 'doc', 'txt', 'csv', 'log', 'md', 'jpg', 'jpeg', 'png', 'tiff', 'bmp', 'gif'];
-            if (!supportedExts.includes(ext) && ext !== '') {
-                results.push({ filename, status: 'error', message: `Unsupported file type: .${ext}` });
-                continue;
+            if (!SUPPORTED_EXTS.includes(ext) && ext !== '') {
+                results[index] = { filename, status: 'error', message: `Unsupported file type: .${ext}` };
+                return;
             }
 
             const existing = db.getDocumentByNameAndSize(filename, stats.size);
             if (existing) {
-                results.push({ filename, status: 'duplicate', id: existing.id });
-                continue;
+                results[index] = { filename, status: 'duplicate', id: existing.id };
+                return;
             }
 
             const destPath = path.join(ROOT_STORAGE, `${Date.now()}_${crypto.randomBytes(4).toString('hex')}_${filename}`);
@@ -362,13 +420,26 @@ ipcMain.handle('upload-files', async (event, filePaths) => {
 
             db.insertDocument(docRecord);
             db.logActivity('DOCUMENT_UPLOAD', `Ingested file: ${filename} (${(stats.size / 1024).toFixed(1)} KB)`, 'fa-solid fa-cloud-arrow-up', 'text-brand-400');
-            results.push({ filename, status: 'success', document: docRecord });
-            event.sender.send('upload-progress', { current: i + 1, total, filename });
+            results[index] = { filename, status: 'success', document: docRecord };
         } catch (err) {
             log(`Error processing ${filePath}:`, err);
-            results.push({ filename: path.basename(filePath), status: 'error', message: err.message || 'Processing failed' });
+            results[index] = { filename, status: 'error', message: err.message || 'Processing failed' };
+        } finally {
+            completed++;
+            event.sender.send('upload-progress', { current: completed, total, filename });
         }
-    }
+    };
+
+    // Bounded-concurrency pool
+    let next = 0;
+    const poolWorker = async () => {
+        while (next < total) {
+            const i = next++;
+            await processOne(i);
+        }
+    };
+    const poolSize = Math.min(CONCURRENCY, total);
+    await Promise.all(Array.from({ length: poolSize }, () => poolWorker()));
     return results;
 });
 
@@ -427,11 +498,24 @@ ipcMain.handle('get-file-buffer', (event, filePath) => {
         const ext = path.extname(filePath).substring(1).toLowerCase();
         const mimeMap = {
             'pdf': 'application/pdf',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'doc': 'application/msword',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'xls': 'application/vnd.ms-excel',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'odt': 'application/vnd.oasis.opendocument.text',
+            'epub': 'application/epub+zip',
+            'rtf': 'application/rtf',
             'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
             'png': 'image/png', 'gif': 'image/gif',
-            'bmp': 'image/bmp', 'tiff': 'image/tiff',
+            'bmp': 'image/bmp', 'tiff': 'image/tiff', 'webp': 'image/webp',
+            'svg': 'image/svg+xml',
             'txt': 'text/plain', 'csv': 'text/csv',
-            'log': 'text/plain', 'md': 'text/markdown'
+            'log': 'text/plain', 'md': 'text/markdown',
+            'html': 'text/html', 'htm': 'text/html',
+            'xml': 'text/xml', 'json': 'application/json',
+            'yml': 'text/yaml', 'yaml': 'text/yaml', 'ini': 'text/plain'
         };
         return {
             buffer: data.toString('base64'),
@@ -563,17 +647,29 @@ ipcMain.handle('rebuild-fts', () => {
 // ─────────────────────────────────────────────
 // WORKER
 // ─────────────────────────────────────────────
+// Extraction runs in a worker_thread so the UI never freezes. A hard timeout
+// protects against corrupt files or pathological documents that never finish.
+const EXTRACTION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes (OCR-heavy files)
+
 function runExtractionWorker(filePath, ext, ocrEnabled, ocrLanguages = ['en']) {
     return new Promise((resolve, reject) => {
         const worker = new Worker(path.join(__dirname, 'search-worker.js'), {
             workerData: { filePath, ext, ocrEnabled, ocrLanguages }
         });
+        const timer = setTimeout(() => {
+            log('Extraction timed out, terminating worker for:', path.basename(filePath));
+            worker.terminate();
+            reject(new Error('Extraction timed out — file may be too large or corrupted'));
+        }, EXTRACTION_TIMEOUT_MS);
+        const done = () => clearTimeout(timer);
         worker.on('message', (result) => {
+            done();
             if (result.error) reject(new Error(result.error));
             else resolve(result);
         });
-        worker.on('error', reject);
+        worker.on('error', (err) => { done(); reject(err); });
         worker.on('exit', (code) => {
+            done();
             if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`));
         });
     });

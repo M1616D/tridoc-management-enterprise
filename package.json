@@ -1,6 +1,6 @@
 {
   "name": "tridoc-management-enterprise",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Professional Smart Document Management & Full-Text Search System",
   "main": "main.js",
   "scripts": {
@@ -22,6 +22,7 @@
   "license": "Proprietary",
   "dependencies": {
     "better-sqlite3": "^9.4.3",
+    "jszip": "^3.10.1",
     "mammoth": "^1.6.0",
     "pdf-parse": "^1.1.1",
     "tesseract.js": "^5.0.5",
@@ -35,7 +36,7 @@
   "build": {
     "appId": "com.triverse.tridoc",
     "productName": "TriDoc Enterprise",
-    "copyright": "Copyright © 2025 TriVerse Studio Software Solution",
+    "copyright": "Copyright © 2026 TriVerse Studio Software Solution",
     "directories": {
       "output": "dist"
     },

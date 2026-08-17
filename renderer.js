@@ -189,15 +189,15 @@ const UI = {
         document.getElementById('kpi-total-docs').textContent = STATE.stats.totalDocs || 0;
         document.getElementById('kpi-total-storage').textContent = formatBytes(STATE.stats.totalSize || 0);
         document.getElementById('kpi-processed-pages').textContent = STATE.stats.totalPages || 0;
-
-        // Real storage percentage
-        const storageInfo = STATE.storageInfo;
-        const usedPct = storageInfo.diskTotal > 0
-            ? Math.min(100, ((storageInfo.diskTotal - storageInfo.diskFree) / storageInfo.diskTotal) * 100)
-            : 0;
-        document.getElementById('storage-used-label').textContent = formatBytes(STATE.storageInfo.totalSize || STATE.stats.totalSize || 0);
-        document.getElementById('storage-progress-bar').style.width = `${usedPct.toFixed(1)}%`;
         document.getElementById('kpi-avg-latency').textContent = '< 10ms';
+
+        // Sidebar "My Library" mini stats (app data only — not disk usage)
+        const sideDocs = document.getElementById('side-doc-count');
+        if (sideDocs) sideDocs.textContent = STATE.stats.totalDocs || 0;
+        const sideSize = document.getElementById('side-storage-size');
+        if (sideSize) sideSize.textContent = formatBytes(STATE.stats.totalSize || 0);
+        const sidePages = document.getElementById('side-page-count');
+        if (sidePages) sidePages.textContent = STATE.stats.totalPages || 0;
 
         this.renderCharts();
     },
@@ -376,7 +376,7 @@ const UI = {
         let html = '';
         const ext = (doc.fileType || '').toLowerCase();
 
-        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'].includes(ext)) {
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp'].includes(ext)) {
             // Image — try to load from file
             try {
                 const fileData = await window.electronAPI.getFileBuffer(doc.filepath);
@@ -419,6 +419,17 @@ const UI = {
 
     closePreview() {
         document.getElementById('preview-modal').classList.add('hidden');
+    },
+
+    // Open the original file with the system default app
+    async openOriginalFile(filePath) {
+        if (!filePath) return;
+        try {
+            const ok = await window.electronAPI.openFile(filePath);
+            if (!ok) UI.showToast('Could not open file.', 'error');
+        } catch (err) {
+            UI.showToast('Open failed: ' + err.message, 'error');
+        }
     },
 
     // ─────────────────────────────────────────────
@@ -588,13 +599,23 @@ const UI = {
             });
         }
 
-        // Global search
+        // Global search (debounced)
         const globalSearch = document.getElementById('global-search-input');
         if (globalSearch) {
             let searchTimeout;
             globalSearch.addEventListener('input', (e) => {
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(() => App.search(e.target.value), 300);
+            });
+        }
+
+        // Deep search (debounced so keystrokes don't hammer the DB)
+        const deepSearch = document.getElementById('deep-search-input');
+        if (deepSearch) {
+            let deepTimeout;
+            deepSearch.addEventListener('input', (e) => {
+                clearTimeout(deepTimeout);
+                deepTimeout = setTimeout(() => App.search(e.target.value), 250);
             });
         }
 
@@ -877,7 +898,7 @@ const App = {
 // HTML escape utility
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 window.UI = UI;
