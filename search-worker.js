@@ -48,7 +48,22 @@ function buildLangString(ocrLanguages) {
     return tessLangs.length > 0 ? tessLangs.join('+') : 'eng';
 }
 
-// OCR a file (image or PDF). Tesseract.js v5 can read PDFs directly.
+// Detect a broken/low-quality text layer. When a PDF creator tool cannot map
+// non-Latin glyphs (e.g. Amharic) it often replaces every character with the
+// same fallback glyph — usually "•" (U+2022) — so the text layer contains
+// "words" made of bullets. Normal documents use single bullets as list
+// markers, so 2+ bullet-words (or replacement chars / NULs) is the signature
+// of a damaged text layer.
+function detectBrokenTextLayer(text) {
+    if (!text) return false;
+    const bulletWords = (text.match(/(?:^|\s)[\u2022\u2023\u25AA\u25CF\u25E6]{2,}(?=\s|$)/g) || []).length;
+    const replacementChars = (text.match(/[\uFFFD\u0000]/g) || []).length;
+    return bulletWords >= 2 || replacementChars > 0;
+}
+
+// OCR a file (image or PDF page rendered to an image).
+// NOTE: in Node, tesseract.js cannot read PDFs directly ("Pdf reading is not
+// supported") — only images — so PDFs must be rasterized to images first.
 // Languages are loaded from the bundled tessdata folder via cachePath with
 // cacheMethod 'read' — this reads the .traineddata files straight from disk
 // and works offline. (A plain langPath doesn't work in Electron: tesseract.js
@@ -104,7 +119,16 @@ async function extract() {
                         const end = Math.min((i + 1) * approxCharsPerPage, fullText.length);
                         pages.push({ pageNumber: i + 1, text: fullText.substring(start, end) });
                     }
-                    category = 'Contracts';
+                    if (detectBrokenTextLayer(fullText)) {
+                        // The text layer contains fallback glyphs (e.g. "•" replacing
+                        // Amharic characters). Keep the text so the readable part still
+                        // searches, but flag the document so the UI can tell the user
+                        // the non-Latin content was lost when the PDF was created.
+                        console.warn(`[EXTRACT] Broken text layer detected in ${path.basename(filePath)} — non-Latin text may have been replaced by fallback glyphs ("•") at PDF creation time.`);
+                        category = 'Broken Text Layer';
+                    } else {
+                        category = 'Contracts';
+                    }
                 } else if (ocrEnabled) {
                     // Scanned/image PDF — OCR fallback
                     fullText = (await ocrFile(filePath, ocrLanguages)).trim();

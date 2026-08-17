@@ -283,7 +283,8 @@ const UI = {
 
         STATE.documents.forEach(doc => {
             const isUnreadable = doc.category === 'Unreadable PDF';
-            const iconClass = isUnreadable ? 'fa-solid fa-triangle-exclamation text-yellow-400' : 'fa-solid fa-file-lines text-brand';
+            const isBroken = doc.category === 'Broken Text Layer';
+            const iconClass = (isUnreadable || isBroken) ? 'fa-solid fa-triangle-exclamation text-yellow-400' : 'fa-solid fa-file-lines text-brand';
             const tags = (doc.tags || []).map(tagId => {
                 const tag = STATE.tags.find(tg => tg.id === tagId);
                 return tag ? `<span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-1" style="background:${tag.color}22;color:${tag.color};border:1px solid ${tag.color}44">${tag.name}</span>` : '';
@@ -297,7 +298,7 @@ const UI = {
                     <td class="px-4 py-3 font-medium text-white flex items-center gap-3">
                         <i class="${iconClass}"></i>
                         <span class="cursor-pointer hover:text-brand transition" onclick="App.previewDocument('${doc.id}')">${doc.filename || 'Unknown'}</span>
-                        ${isUnreadable ? '<span class="text-xs text-yellow-400 ml-1">(No text)</span>' : ''}
+                        ${isUnreadable ? '<span class="text-xs text-yellow-400 ml-1">(No text)</span>' : isBroken ? '<span class="text-xs text-yellow-400 ml-1">(Broken text layer)</span>' : ''}
                     </td>
                     <td class="px-4 py-3"><span class="px-2.5 py-1 rounded-lg bg-dark-700 text-xs font-semibold text-gray-300">${doc.category || 'Uncategorized'}</span></td>
                     <td class="px-4 py-3 text-gray-400 text-sm">${tags || '<span class="text-gray-600 text-xs">—</span>'}</td>
@@ -390,6 +391,9 @@ const UI = {
         } else if (ext === 'pdf') {
             // PDF — show first page text + link to open
             html = `<div class="bg-dark-900 rounded-xl p-4 border border-dark-700 max-h-[60vh] overflow-y-auto">`;
+            if (doc.category === 'Broken Text Layer') {
+                html += `<div class="mb-3 p-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 text-xs leading-relaxed"><i class="fa-solid fa-triangle-exclamation mr-1"></i><b>Incomplete text layer:</b> this PDF's text layer contains fallback glyphs ("•") instead of real characters — non-Latin text (e.g. Amharic) was lost when the PDF was created, so it cannot be searched or recovered. Regenerate the PDF from a tool that preserves Amharic (Word, Google Docs, Canva export) and re-upload it.</div>`;
+            }
             if (doc.pages && doc.pages.length > 0) {
                 doc.pages.slice(0, 5).forEach(p => {
                     html += `<div class="mb-4"><span class="text-xs text-gray-500 font-semibold">Page ${p.pageNumber}</span><pre class="text-sm text-gray-300 whitespace-pre-wrap mt-1">${escapeHtml(p.text || '(empty)')}</pre></div>`;
