@@ -46,7 +46,8 @@
       "!*.log"
     ],
     "extraResources": [
-      "locales/**"
+      "locales/**",
+      "tessdata/**"
     ],
     "win": {
       "target": "nsis",

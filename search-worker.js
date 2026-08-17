@@ -5,6 +5,18 @@ const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const { createWorker } = require('tesseract.js');
 
+// Local Tesseract traineddata folder, bundled with the app.
+// In dev builds it sits next to this file; in packaged builds it is copied
+// to process.resourcesPath/tessdata via the "extraResources" build config.
+function resolveTessdataDir() {
+    const local = path.join(__dirname, 'tessdata');
+    if (fs.existsSync(local)) return local;
+    const bundled = path.join(process.resourcesPath || '', 'tessdata');
+    if (fs.existsSync(bundled)) return bundled;
+    return local;
+}
+const TESSDATA_DIR = resolveTessdataDir();
+
 // Supported OCR languages mapped to Tesseract codes
 const LANG_MAP = {
     'en': 'eng',
@@ -37,16 +49,36 @@ function buildLangString(ocrLanguages) {
 }
 
 // OCR a file (image or PDF). Tesseract.js v5 can read PDFs directly.
+// Languages are loaded from the bundled tessdata folder via cachePath with
+// cacheMethod 'read' — this reads the .traineddata files straight from disk
+// and works offline. (A plain langPath doesn't work in Electron: tesseract.js
+// treats Electron as a browser and tries to fetch() the local path.)
+// Languages not bundled locally fall back to the tesseract.js CDN, and if the
+// whole language set fails to load we retry with English so extraction still
+// produces content instead of failing the whole upload.
 async function ocrFile(filePath, ocrLanguages) {
-    const langStr = buildLangString(ocrLanguages);
-    console.log(`[OCR] Using languages: ${langStr}`);
-    const worker = await createWorker(langStr);
-    try {
-        const ret = await worker.recognize(filePath);
-        return (ret.data && ret.data.text) ? ret.data.text : '';
-    } finally {
-        await worker.terminate();
+    const langs = (ocrLanguages && ocrLanguages.length > 0) ? ocrLanguages : ['en'];
+    const attempts = [buildLangString(langs)];
+    if (!langs.includes('en')) attempts.push('eng');
+
+    for (const langStr of attempts) {
+        try {
+            console.log(`[OCR] Using languages: ${langStr} (cachePath: ${TESSDATA_DIR})`);
+            const worker = await createWorker(langStr, 1, {
+                cachePath: TESSDATA_DIR,
+                cacheMethod: 'read'
+            });
+            try {
+                const ret = await worker.recognize(filePath);
+                return (ret.data && ret.data.text) ? ret.data.text : '';
+            } finally {
+                await worker.terminate();
+            }
+        } catch (err) {
+            console.warn(`[OCR] Failed with language(s) "${langStr}":`, err.message);
+        }
     }
+    return '';
 }
 
 async function extract() {
@@ -119,6 +151,7 @@ async function extract() {
         } else if (['jpg', 'jpeg', 'png', 'tiff', 'bmp', 'gif'].includes(ext)) {
             if (ocrEnabled) {
                 fullText = await ocrFile(filePath, ocrLanguages);
+                if (!fullText) fullText = '[No text extracted – OCR returned no content]';
             } else {
                 fullText = '[Image file - OCR disabled]';
             }
