@@ -1,0 +1,8 @@
+{
+  "fuzzySearch": true,
+  "autoIndex": true,
+  "maxSnippetLen": 250,
+  "ocrEnabled": true,
+  "theme": "dark",
+  "language": "en"
+}

@@ -1,0 +1,39 @@
+END-USER LICENSE AGREEMENT FOR TRIDOC ENTERPRISE
+
+IMPORTANT – PLEASE READ THIS AGREEMENT CAREFULLY BEFORE INSTALLING OR USING THE SOFTWARE.
+
+This End-User License Agreement ("EULA") is a legal agreement between you (either an individual or a single entity) and TriVerse Studio Software Solution ("Licensor") for the software product identified above, which includes computer software and associated documentation ("Software").
+
+BY INSTALLING, COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THE TERMS OF THIS EULA. IF YOU DO NOT AGREE, DO NOT INSTALL OR USE THE SOFTWARE.
+
+1. GRANT OF LICENSE
+   Licensor grants you a non‑exclusive, non‑transferable, revocable license to install and use the Software solely for your internal business purposes. You may install the Software on a single computer or network, provided that only one user accesses the Software at a time.
+
+2. RESTRICTIONS
+   You may not:
+   - Modify, adapt, translate, reverse engineer, decompile, or disassemble the Software.
+   - Rent, lease, sublicense, or distribute the Software to third parties.
+   - Remove or alter any proprietary notices or labels on the Software.
+   - Use the Software for any illegal purpose or in any manner that violates applicable laws.
+
+3. INTELLECTUAL PROPERTY
+   The Software is protected by copyright, trade secret, and other intellectual property laws. Licensor retains all right, title, and interest in and to the Software, including all improvements, enhancements, and derivative works.
+
+4. DISCLAIMER OF WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. LICENSOR DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON‑INFRINGEMENT. LICENSOR DOES NOT WARRANT THAT THE SOFTWARE WILL BE ERROR‑FREE OR UNINTERRUPTED.
+
+5. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+6. TERMINATION
+   This EULA is effective until terminated. Your rights under this EULA will terminate automatically without notice from Licensor if you fail to comply with any term or condition. Upon termination, you must cease all use of the Software and destroy all copies.
+
+7. GOVERNING LAW
+   This EULA shall be governed by the laws of Ethiopia, without regard to its conflict of laws principles.
+
+8. ENTIRE AGREEMENT
+   This EULA constitutes the entire agreement between the parties concerning the Software and supersedes all prior or contemporaneous communications.
+
+If you have any questions regarding this EULA, please contact TriVerse Studio Software Solution.
+
+© 2025 TriVerse Studio Software Solution. All rights reserved.
