@@ -220,23 +220,11 @@ class DocDatabase {
         const cleanQuery = query.trim().replace(/["']/g, '').replace(/\s+/g, ' ');
         const ftsQuery = cleanQuery.split(/\s+/).map(term => `"${term}"*`).join(' OR ');
 
-        try {
-            const stmt = this.db.prepare(`
-                SELECT d.id, d.filename, d.filepath, d.fileType, d.size, d.uploadDate, d.category, d.pages, d.totalPages, d.tags,
-                snippet(documents_fts, 3, '<mark>', '</mark>', '...', 32) as snippet
-                FROM documents_fts
-                JOIN documents d ON documents_fts.id = d.id
-                WHERE documents_fts MATCH ?
-                ORDER BY rank
-                LIMIT ? OFFSET ?
-            `);
-            const rows = stmt.all(ftsQuery, limit, offset);
-            return rows.map(r => ({
-                ...r,
-                pages: JSON.parse(r.pages || '[]'),
-                tags: JSON.parse(r.tags || '[]')
-            }));
-        } catch (err) {
+        // LIKE-based fallback used when the FTS query errors or matches nothing.
+        // FTS5 prefix matching only matches from the start of a word, so it can
+        // miss substrings inside longer words (common in Amharic, e.g. searching
+        // "ኢትዮጵያ" should still find "የኢትዮጵያ").
+        const likeSearch = () => {
             const stmt = this.db.prepare(`
                 SELECT id, filename, filepath, fileType, size, uploadDate, category, pages, totalPages, tags, fullText
                 FROM documents
@@ -251,6 +239,29 @@ class DocDatabase {
                 tags: JSON.parse(r.tags || '[]'),
                 snippet: (r.fullText || '').substring(0, 200)
             }));
+        };
+
+        try {
+            const stmt = this.db.prepare(`
+                SELECT d.id, d.filename, d.filepath, d.fileType, d.size, d.uploadDate, d.category, d.pages, d.totalPages, d.tags,
+                snippet(documents_fts, 3, '<mark>', '</mark>', '...', 32) as snippet
+                FROM documents_fts
+                JOIN documents d ON documents_fts.id = d.id
+                WHERE documents_fts MATCH ?
+                ORDER BY rank
+                LIMIT ? OFFSET ?
+            `);
+            const rows = stmt.all(ftsQuery, limit, offset);
+            if (rows.length === 0) {
+                return likeSearch();
+            }
+            return rows.map(r => ({
+                ...r,
+                pages: JSON.parse(r.pages || '[]'),
+                tags: JSON.parse(r.tags || '[]')
+            }));
+        } catch (err) {
+            return likeSearch();
         }
     }
 
