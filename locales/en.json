@@ -24,6 +24,7 @@
   "processedPages": "Processed Pages",
   "avgLatency": "Avg Query Latency",
   "searchPlaceholder": "Search any content inside any uploaded document (Ctrl+K)...",
+  "typeToSearch": "Type something to search your documents",
   "uploadModalTitle": "Upload Documents",
   "dropzoneText": "Drag and drop any files here",
   "browseFiles": "Browse Files on Computer",

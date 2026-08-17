@@ -1,6 +1,6 @@
 {
   "name": "tridoc-management-enterprise",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Professional Smart Document Management & Full-Text Search System",
   "main": "main.js",
   "scripts": {
@@ -44,7 +44,12 @@
       "**/*",
       "!node_modules/.bin",
       "!dist",
-      "!*.log"
+      "!*.log",
+      "!sample.pdf",
+      "!tmp-*.js"
+    ],
+    "asarUnpack": [
+      "vendor/webfonts/**"
     ],
     "extraResources": [
       "locales/**",

@@ -24,6 +24,7 @@
   "processedPages": "የተሰሩ ገፆች",
   "avgLatency": "አማካይ ጥያቄ መዘግየት",
   "searchPlaceholder": "በማንኛውም ሰነድ ውስጥ ያለውን ይዘት ይፈልጉ (Ctrl+K)...",
+  "typeToSearch": "ሰነዶችዎን ለመፈለግ ይጻፉ",
   "uploadModalTitle": "ሰነዶችን ስቀል",
   "dropzoneText": "ፋይሎችን እዚህ ጎትተው ይጣሉ",
   "browseFiles": "በኮምፒውተር ላይ ፋይሎችን ይመልከቱ",

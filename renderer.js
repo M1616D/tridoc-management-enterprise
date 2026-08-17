@@ -196,8 +196,6 @@ const UI = {
         if (sideDocs) sideDocs.textContent = STATE.stats.totalDocs || 0;
         const sideSize = document.getElementById('side-storage-size');
         if (sideSize) sideSize.textContent = formatBytes(STATE.stats.totalSize || 0);
-        const sidePages = document.getElementById('side-page-count');
-        if (sidePages) sidePages.textContent = STATE.stats.totalPages || 0;
 
         this.renderCharts();
     },
@@ -720,7 +718,18 @@ const App = {
     },
 
     async search(query) {
-        if (!query || !query.trim()) return;
+        // Empty search box → clear stale results instead of freezing on the
+        // previous document's results.
+        if (!query || !query.trim()) {
+            const container = document.getElementById('search-results-container');
+            if (container) {
+                container.innerHTML = `<div class="p-12 text-center text-gray-400 bg-dark-800 rounded-2xl border border-dark-700">
+                    <i class="fa-solid fa-magnifying-glass text-2xl mb-3 text-gray-600"></i>
+                    <p class="text-sm">${t('typeToSearch')}</p>
+                </div>`;
+            }
+            return;
+        }
         if (STATE.currentView !== 'search') UI.navigate('search');
         const input = document.getElementById('deep-search-input');
         if (input) input.value = query;
