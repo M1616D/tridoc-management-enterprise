@@ -45,15 +45,23 @@ class DocDatabase {
             this.db.exec(`ALTER TABLE documents ADD COLUMN tags TEXT DEFAULT '[]'`);
         } catch (e) { /* column already exists */ }
 
-        // FTS5 index
+        // FTS5 index — drop and recreate on every startup to guarantee the
+        // correct tokenizer (unicode61 with diacritics preserved) is used.
+        // This is safe because the actual text lives in the 'documents' table;
+        // the FTS table is just an index that gets rebuilt from it.
+        this.db.exec(`DROP TRIGGER IF EXISTS documents_ai`);
+        this.db.exec(`DROP TRIGGER IF EXISTS documents_ad`);
+        this.db.exec(`DROP TABLE IF EXISTS documents_fts`);
+
         this.db.exec(`
-            CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+            CREATE VIRTUAL TABLE documents_fts USING fts5(
                 id UNINDEXED,
                 filename,
                 category,
                 fullText,
                 content='documents',
-                content_rowid='rowid'
+                content_rowid='rowid',
+                tokenize='unicode61 remove_diacritics 0'
             );
         `);
 
@@ -69,6 +77,9 @@ class DocDatabase {
                 VALUES('delete', old.rowid, old.id, old.filename, old.category, old.fullText);
             END;
         `);
+
+        // Rebuild FTS index from existing documents
+        this.db.exec(`INSERT INTO documents_fts(documents_fts) VALUES('rebuild')`);
 
         // Users table
         this.db.exec(`
@@ -218,51 +229,62 @@ class DocDatabase {
     searchDocuments(query, page = 1, limit = 25) {
         const offset = (page - 1) * limit;
         const cleanQuery = query.trim().replace(/["']/g, '').replace(/\s+/g, ' ');
+
+        if (!cleanQuery) return [];
+
         const ftsQuery = cleanQuery.split(/\s+/).map(term => `"${term}"*`).join(' OR ');
+        const wildcard = `%${cleanQuery}%`;
 
-        // LIKE-based fallback used when the FTS query errors or matches nothing.
-        // FTS5 prefix matching only matches from the start of a word, so it can
-        // miss substrings inside longer words (common in Amharic, e.g. searching
-        // "ኢትዮጵያ" should still find "የኢትዮጵያ").
-        const likeSearch = () => {
-            const stmt = this.db.prepare(`
-                SELECT id, filename, filepath, fileType, size, uploadDate, category, pages, totalPages, tags, fullText
-                FROM documents
-                WHERE fullText LIKE ? OR filename LIKE ?
-                LIMIT ? OFFSET ?
-            `);
-            const wildcard = `%${cleanQuery}%`;
-            const rows = stmt.all(wildcard, wildcard, limit, offset);
-            return rows.map(r => ({
-                ...r,
-                pages: JSON.parse(r.pages || '[]'),
-                tags: JSON.parse(r.tags || '[]'),
-                snippet: (r.fullText || '').substring(0, 200)
-            }));
-        };
+        // Run BOTH FTS (prefix/word matching) and LIKE (substring matching)
+        // in parallel. This is critical for Amharic and Afaan Oromo where
+        // compound words (e.g. "የኢትዮጵያ") need substring matching — FTS prefix
+        // search alone would miss "ኢትዮጵያ" inside "የኢትዮጵያ".
+        const seen = new Set();
+        const results = [];
 
+        // 1. FTS search — best for exact / prefix matches with snippets
         try {
-            const stmt = this.db.prepare(`
+            const ftsStmt = this.db.prepare(`
                 SELECT d.id, d.filename, d.filepath, d.fileType, d.size, d.uploadDate, d.category, d.pages, d.totalPages, d.tags,
                 snippet(documents_fts, 3, '<mark>', '</mark>', '...', 32) as snippet
                 FROM documents_fts
                 JOIN documents d ON documents_fts.id = d.id
                 WHERE documents_fts MATCH ?
                 ORDER BY rank
-                LIMIT ? OFFSET ?
+                LIMIT ?
             `);
-            const rows = stmt.all(ftsQuery, limit, offset);
-            if (rows.length === 0) {
-                return likeSearch();
+            for (const row of ftsStmt.all(ftsQuery, limit * 2)) {
+                seen.add(row.id);
+                results.push({
+                    ...row,
+                    pages: JSON.parse(row.pages || '[]'),
+                    tags: JSON.parse(row.tags || '[]')
+                });
             }
-            return rows.map(r => ({
-                ...r,
-                pages: JSON.parse(r.pages || '[]'),
-                tags: JSON.parse(r.tags || '[]')
-            }));
-        } catch (err) {
-            return likeSearch();
-        }
+        } catch (err) { /* FTS failed — proceed to LIKE */ }
+
+        // 2. LIKE search — catches substring matches inside compound words
+        try {
+            const likeStmt = this.db.prepare(`
+                SELECT id, filename, filepath, fileType, size, uploadDate, category, pages, totalPages, tags, fullText
+                FROM documents
+                WHERE fullText LIKE ? OR filename LIKE ?
+                LIMIT ?
+            `);
+            for (const row of likeStmt.all(wildcard, wildcard, limit * 2)) {
+                if (!seen.has(row.id)) {
+                    seen.add(row.id);
+                    results.push({
+                        ...row,
+                        pages: JSON.parse(row.pages || '[]'),
+                        tags: JSON.parse(row.tags || '[]'),
+                        snippet: (row.fullText || '').substring(0, 250)
+                    });
+                }
+            }
+        } catch (err) { /* LIKE failed */ }
+
+        return results.slice(0, limit);
     }
 
     // ─────────────────────────────────────────────

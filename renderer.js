@@ -554,7 +554,7 @@ const UI = {
                         </div>
                         <button onclick="UI.openOriginalFile('${(res.filepath || '').replace(/\\/g, '\\\\')}')" class="px-4 py-2 bg-brand hover:bg-brand-hover text-dark-900 rounded-xl text-xs font-bold shadow-glow transition">${t('open')}</button>
                     </div>
-                    <p class="text-sm text-gray-300 font-mono bg-dark-900 p-3 rounded-xl border border-dark-700 mt-3">...${snippet}...</p>
+                    <p class="text-sm text-gray-300 bg-dark-900 p-3 rounded-xl border border-dark-700 mt-3 leading-relaxed" style="font-family: 'Noto Sans Ethiopic', 'Inter', monospace">...${snippet}...</p>
                 </div>`;
         });
     },
