@@ -73,7 +73,7 @@ let userSettings = {
     autoIndex: true,
     maxSnippetLen: 250,
     ocrEnabled: true,
-    ocrLanguages: ['en'],
+    ocrLanguages: ['en', 'am', 'om'],
     theme: 'dark',
     language: 'en'
 };
