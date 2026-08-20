@@ -1,6 +1,6 @@
 {
   "name": "tridoc-management-enterprise",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Professional Smart Document Management & Full-Text Search System",
   "main": "main.js",
   "scripts": {
